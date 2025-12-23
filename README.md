@@ -6,6 +6,8 @@ Rather than performing complex statistical analysis within Excel, the dashboard 
 
 The workbook integrates **existing datasets for cost of living, crime rate, and climate**, and uses **Excel formulas, data validation, and VBA macros** to translate user inputs into a clear final outcome.
 
+🔗 [Live Streamlit App](https://credit-card-customer-clustering-8nsa98ruztdgc6wktz3hfa.streamlit.app/)
+
 ---
 
 ## 🎯 Objective
