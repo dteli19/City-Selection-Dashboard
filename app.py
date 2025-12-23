@@ -15,7 +15,7 @@ st.set_page_config(
 # -------------------------------------------------
 # File names (must be in same directory)
 # -------------------------------------------------
-EXCEL_FILE = "Group 3 Dashboard.xlsm"
+EXCEL_FILE = "City Selection Dashboard.xlsm"
 
 IMG_DASHBOARD = "Cost_Of_Living_1.png"
 IMG_COST = "Cost_Of_Living_2.png"
