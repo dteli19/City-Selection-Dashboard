@@ -132,44 +132,18 @@ with tab4:
     else:
         st.info(f"Add `{IMG_WEATHER}` to display the climate image.")
 
-# -------------------------------------------------
-# Data Preview tab (optional)
-# -------------------------------------------------
-with tab5:
-    st.subheader("Data Preview (Optional)")
-    st.caption("Sample rows from the Excel sheets. Macros and slicers are not executed here.")
-
-    if not os.path.exists(EXCEL_FILE):
-        st.warning("Excel file not found. Unable to load previews.")
-    else:
-        c1, c2 = st.columns(2)
-
-        with c1:
-            st.markdown("#### Cost_of_living")
-            try:
-                df_cost = load_preview_sheet(EXCEL_FILE, SHEET_COST)
-                st.dataframe(df_cost, use_container_width=True)
-            except Exception as e:
-                st.error(f"Could not load sheet `{SHEET_COST}`: {e}")
-
-        with c2:
-            st.markdown("#### US_violent_crime")
-            try:
-                df_crime = load_preview_sheet(EXCEL_FILE, SHEET_CRIME)
-                st.dataframe(df_crime, use_container_width=True)
-            except Exception as e:
-                st.error(f"Could not load sheet `{SHEET_CRIME}`: {e}")
-
-        st.markdown("#### Weather_Dataset")
-        try:
-            df_weather = load_preview_sheet(EXCEL_FILE, SHEET_WEATHER)
-            st.dataframe(df_weather, use_container_width=True)
-        except Exception as e:
-            st.error(f"Could not load sheet `{SHEET_WEATHER}`: {e}")
 
 # -------------------------------------------------
 # Footer
 # -------------------------------------------------
-st.markdown("---")
-excel_download_button(EXCEL_FILE, key="download_bottom")
-st.caption("Open the downloaded file in Microsoft Excel to access full interactivity.")
+st.markdown("## 💡 Key Takeaways")
+
+st.markdown(
+    """
+- This Excel dashboard functions as a **decision-support tool** for evaluating post-job relocation options.
+- It integrates **cost of living, crime rate, and climate** datasets to simplify complex lifestyle trade-offs.
+- **Data validation and predefined expense brackets** guide user inputs and ensure consistency.
+- **VBA macros** automate navigation and recalculation, improving usability and reducing manual effort.
+"""
+)
+
