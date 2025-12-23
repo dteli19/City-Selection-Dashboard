@@ -126,3 +126,14 @@ This project demonstrates how Excel can be effectively used as a **decision-supp
 - Operational Efficiency: Leveraged VBA macros to automate repetitive steps, enabling faster and more reliable decision cycles.
 
 - Scalable Framework: Designed a reusable Excel-based decision model that can be extended to additional cities, factors, or compensation scenarios.
+
+## ⬇️ Download the Excel Dashboard
+
+You can download the original macro-enabled Excel dashboard here:
+
+[![Download Excel](https://img.shields.io/badge/Download-Excel%20Dashboard-green)](Group%203%20Dashboard.xlsm)
+
+If the link does not open directly, click the file in the repository and choose **Download**.
+
+
+
