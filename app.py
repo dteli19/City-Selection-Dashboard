@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ----------------------------
-# Helpers
+# File names (must exist in same folder)
 # ----------------------------
 DATA_FILE = "Group 3 Dashboard.xlsm"
 
@@ -28,47 +28,51 @@ SHEET_WEATHER = "Weather_Dataset"
 SHEET_CONCISE = "Concised Table"
 
 
+# ----------------------------
+# Helpers
+# ----------------------------
 def safe_open_image(path: str):
     if os.path.exists(path):
         return Image.open(path)
     return None
 
 
+def excel_download_button(file_path: str, label: str):
+    """Adds a Streamlit download button for the Excel file."""
+    if not os.path.exists(file_path):
+        st.warning(f"Excel file not found: {file_path}")
+        return
+
+    with open(file_path, "rb") as f:
+        st.download_button(
+            label=label,
+            data=f,
+            file_name=os.path.basename(file_path),
+            mime="application/vnd.ms-excel"
+        )
+
+
 @st.cache_data(show_spinner=False)
 def load_excel_data(xlsm_path: str):
-    # Read sheets with pandas (openpyxl engine supports .xlsm reading)
     cost_df = pd.read_excel(xlsm_path, sheet_name=SHEET_COST, engine="openpyxl")
     crime_df = pd.read_excel(xlsm_path, sheet_name=SHEET_CRIME, engine="openpyxl")
     weather_df = pd.read_excel(xlsm_path, sheet_name=SHEET_WEATHER, engine="openpyxl")
     concise_df_raw = pd.read_excel(xlsm_path, sheet_name=SHEET_CONCISE, engine="openpyxl")
 
-    # The "Concised Table" has duplicated columns in your workbook.
-    # Keep the first set: Rank, State Name, Grocery, Housing, Utilities, Transportation, Health, Misc., Total
-    keep_cols = ["Rank", "State Name", "Grocery", "Housing", "Utilities", "Transportation", "Health", "Misc.", "Total"]
+    # Concised Table: keep the first block of columns used for bracket filtering
+    keep_cols = ["Rank", "State Name", "Grocery", "Housing", "Utilities",
+                 "Transportation", "Health", "Misc.", "Total"]
     concise_df = concise_df_raw.loc[:, keep_cols].copy()
 
-    # Clean types
-    for c in ["Rank"]:
-        if c in concise_df.columns:
-            concise_df[c] = pd.to_numeric(concise_df[c], errors="coerce")
-
-    # Normalize state name fields for merges
+    # Cleanup
+    concise_df["State Name"] = concise_df["State Name"].astype(str).str.strip()
     cost_df["State Name"] = cost_df["State Name"].astype(str).str.strip()
     crime_df["State"] = crime_df["State"].astype(str).str.strip()
     weather_df["State"] = weather_df["State"].astype(str).str.strip()
-    concise_df["State Name"] = concise_df["State Name"].astype(str).str.strip()
 
-    # Rename some columns for clarity in the merged output
-    cost_df = cost_df.rename(columns={
-        "Rank": "Cost Rank",
-        "Total": "Estimated Expense"
-    })
-
-    crime_df = crime_df.rename(columns={
-        "Total": "Total Arrests",
-        "Rank": "Crime Rank"
-    })
-
+    # Rename for clarity in the app output
+    cost_df = cost_df.rename(columns={"Rank": "Cost Rank", "Total": "Estimated Expense"})
+    crime_df = crime_df.rename(columns={"Rank": "Crime Rank", "Total": "Total Arrests"})
     weather_df = weather_df.rename(columns={
         "Yearly Avg Temp": "Yearly Avg Temp (°F)",
         "Climate Type": "Climate Condition"
@@ -79,7 +83,6 @@ def load_excel_data(xlsm_path: str):
 
 def get_bracket_options(concise_df: pd.DataFrame, col: str):
     opts = sorted([x for x in concise_df[col].dropna().unique().tolist() if str(x).strip() != ""])
-    # Keep as strings
     return [str(x) for x in opts]
 
 
@@ -92,10 +95,8 @@ def filter_by_brackets(concise_df: pd.DataFrame, selections: dict):
 
 
 # ----------------------------
-# Load data
+# Validate Excel presence
 # ----------------------------
-st.title("📊 City Selection Decision Dashboard (Excel VBA to Streamlit)")
-
 if not os.path.exists(DATA_FILE):
     st.error(
         f"Could not find '{DATA_FILE}' in the current folder.\n\n"
@@ -103,16 +104,17 @@ if not os.path.exists(DATA_FILE):
     )
     st.stop()
 
+# Load data
 cost_df, crime_df, weather_df, concise_df = load_excel_data(DATA_FILE)
 
-# Images
+# Load images (optional)
 img_climate = safe_open_image(IMG_CLIMATE)
 img_col1 = safe_open_image(IMG_COL1)
 img_col2 = safe_open_image(IMG_COL2)
 img_crime = safe_open_image(IMG_CRIME)
 
 # ----------------------------
-# Sidebar Navigation
+# Sidebar
 # ----------------------------
 st.sidebar.header("Navigation")
 page = st.sidebar.radio(
@@ -120,8 +122,18 @@ page = st.sidebar.radio(
     ["Home (Final Recommendation)", "Cost of Living", "Crime Rate", "Weather", "Data (Raw Tables)"]
 )
 
+# Sidebar download (always visible)
+st.sidebar.markdown("---")
+st.sidebar.subheader("📥 Download")
+excel_download_button(DATA_FILE, "Download Excel Dashboard (.xlsm)")
+
 # ----------------------------
-# Home: Decision Workflow
+# Main Title
+# ----------------------------
+st.title("📊 City Selection Decision Dashboard")
+
+# ----------------------------
+# Home
 # ----------------------------
 if page == "Home (Final Recommendation)":
     st.subheader("Where to go next? Let the data decide.")
@@ -131,41 +143,37 @@ if page == "Home (Final Recommendation)":
     with left:
         st.markdown(
             """
-This app mirrors the Excel dashboard workflow:
-- You select **expense brackets** you are comfortable with (Grocery, Housing, Utilities, etc.)
-- The model filters states using the **Concised Table** brackets
-- Results are enriched with **Cost of Living**, **Crime**, and **Weather** data
+This app replicates the Excel dashboard workflow:
+- Select **expense brackets** you are comfortable with (Grocery, Housing, Utilities, etc.)
+- The app filters states using the **Concised Table** bracket logic
+- Results are enriched with **Cost of Living**, **Crime**, and **Weather** datasets
 """
         )
 
-        # Bracket dropdowns (same idea as Excel validation lists)
         bracket_cols = ["Grocery", "Housing", "Utilities", "Transportation", "Health", "Misc.", "Total"]
-
         selections = {}
-        cols1 = st.columns(3)
+
+        cols_grid = st.columns(3)
         for i, col in enumerate(bracket_cols):
             opts = ["Any"] + get_bracket_options(concise_df, col)
-            with cols1[i % 3]:
+            with cols_grid[i % 3]:
                 selections[col] = st.selectbox(f"{col} bracket", options=opts, index=0, key=f"sel_{col}")
 
-        # Additional preference filters (optional)
         st.markdown("### Optional preferences")
-        pref1, pref2, pref3 = st.columns(3)
+        p1, p2, p3 = st.columns(3)
 
         climate_opts = ["Any"] + sorted(weather_df["Climate Condition"].dropna().unique().tolist())
-        with pref1:
+        with p1:
             chosen_climate = st.selectbox("Preferred Climate Condition", climate_opts, index=0)
 
-        with pref2:
+        with p2:
             max_crime_rank = st.slider("Max Crime Rank (lower is better)", min_value=1, max_value=50, value=50)
 
-        with pref3:
+        with p3:
             max_cost_rank = st.slider("Max Cost Rank (lower is cheaper)", min_value=1, max_value=50, value=50)
 
-        # Filter by bracket table
         filtered_brackets = filter_by_brackets(concise_df, selections)
 
-        # Merge with other datasets
         merged = (
             filtered_brackets
             .merge(cost_df[["State Name", "Cost Rank", "Estimated Expense"]], on="State Name", how="left")
@@ -177,10 +185,11 @@ This app mirrors the Excel dashboard workflow:
         if chosen_climate != "Any":
             merged = merged[merged["Climate Condition"].astype(str) == str(chosen_climate)]
 
-        merged = merged[pd.to_numeric(merged["Crime Rank"], errors="coerce") <= max_crime_rank]
-        merged = merged[pd.to_numeric(merged["Cost Rank"], errors="coerce") <= max_cost_rank]
+        merged["Crime Rank"] = pd.to_numeric(merged["Crime Rank"], errors="coerce")
+        merged["Cost Rank"] = pd.to_numeric(merged["Cost Rank"], errors="coerce")
+        merged = merged[merged["Crime Rank"] <= max_crime_rank]
+        merged = merged[merged["Cost Rank"] <= max_cost_rank]
 
-        # Clean columns
         show_cols = [
             "State Name",
             "Cost Rank",
@@ -192,18 +201,11 @@ This app mirrors the Excel dashboard workflow:
         ]
 
         st.markdown("### Suggested states based on your selections")
-        st.caption("Tip: Adjust brackets and filters to see updated recommendations.")
-
         if merged.empty:
-            st.warning("No states match your current bracket selections and filters. Try setting some fields to 'Any'.")
+            st.warning("No states match your selections. Try setting some fields to 'Any'.")
         else:
-            # Sort for readability: cheaper and safer first
-            merged_out = merged.copy()
-            merged_out["Cost Rank"] = pd.to_numeric(merged_out["Cost Rank"], errors="coerce")
-            merged_out["Crime Rank"] = pd.to_numeric(merged_out["Crime Rank"], errors="coerce")
-            merged_out = merged_out.sort_values(by=["Cost Rank", "Crime Rank"], ascending=True)
+            merged_out = merged.sort_values(by=["Cost Rank", "Crime Rank"], ascending=True)
 
-            # KPI style
             best_state = merged_out["State Name"].iloc[0]
             k1, k2, k3 = st.columns(3)
             with k1:
@@ -215,60 +217,53 @@ This app mirrors the Excel dashboard workflow:
 
             st.dataframe(merged_out[show_cols], use_container_width=True)
 
+        # Download section on Home page too
+        st.markdown("---")
+        st.subheader("⬇️ Download the Excel Dashboard")
+        st.write("Download the original macro-enabled Excel file to view VBA macros, data validation, and sheet navigation.")
+        excel_download_button(DATA_FILE, "Download Excel Dashboard (.xlsm)")
+
     with right:
-        st.markdown("### Dashboard Screens (from Excel)")
+        st.markdown("### Excel Screenshots")
         if img_col1:
             st.image(img_col1, caption="Excel Dashboard Home View", use_container_width=True)
         if img_col2:
             st.image(img_col2, caption="Cost of Living View (Excel)", use_container_width=True)
 
-        st.info(
-            "Note: This Streamlit app replicates the Excel decision flow using the same underlying datasets and bracket logic."
-        )
-
 # ----------------------------
-# Cost of Living page
+# Cost of Living
 # ----------------------------
 elif page == "Cost of Living":
     st.subheader("💸 Cost of Living")
-    st.write("This section displays the Cost of Living dataset used by the dashboard.")
-
     c1, c2 = st.columns([1, 1])
     with c1:
         if img_col2:
             st.image(img_col2, caption="Cost of Living Index View (Excel)", use_container_width=True)
     with c2:
-        st.dataframe(
-            cost_df[["State Name", "Cost Rank", "Estimated Expense", "Grocery", "Housing", "Utilities",
-                     "Transportation", "Health", "Misc.", ]].sort_values("Cost Rank"),
-            use_container_width=True
-        )
+        cols = ["State Name", "Cost Rank", "Estimated Expense", "Grocery", "Housing", "Utilities",
+                "Transportation", "Health", "Misc."]
+        available = [c for c in cols if c in cost_df.columns]
+        st.dataframe(cost_df[available].sort_values("Cost Rank"), use_container_width=True)
 
 # ----------------------------
-# Crime page
+# Crime Rate
 # ----------------------------
 elif page == "Crime Rate":
     st.subheader("🚨 Crime Rate")
-    st.write("This section displays violent crime metrics used as decision inputs.")
-
     c1, c2 = st.columns([1, 1])
     with c1:
         if img_crime:
             st.image(img_crime, caption="Crime Rate View (Excel)", use_container_width=True)
     with c2:
-        st.dataframe(
-            crime_df[["State", "Crime Rank", "Total Arrests", "Murder", "Assault", "Rape"]]
-            .sort_values("Crime Rank"),
-            use_container_width=True
-        )
+        cols = ["State", "Crime Rank", "Total Arrests", "Murder", "Assault", "Rape"]
+        available = [c for c in cols if c in crime_df.columns]
+        st.dataframe(crime_df[available].sort_values("Crime Rank"), use_container_width=True)
 
 # ----------------------------
-# Weather page
+# Weather
 # ----------------------------
 elif page == "Weather":
     st.subheader("🌤 Weather and Climate")
-    st.write("This section displays seasonal temperature breakdown and climate condition by state.")
-
     c1, c2 = st.columns([1, 1])
     with c1:
         if img_climate:
@@ -280,14 +275,13 @@ elif page == "Weather":
         st.dataframe(weather_df[available].sort_values("State"), use_container_width=True)
 
 # ----------------------------
-# Raw Data
+# Raw Tables
 # ----------------------------
 else:
     st.subheader("📄 Raw Tables")
-    st.caption("These are the source tables powering the dashboard logic.")
-
-    tab1, tab2, tab3, tab4 = st.tabs(["Concised Table (Brackets)", "Cost_of_living", "US_violent_crime", "Weather_Dataset"])
-
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["Concised Table (Brackets)", "Cost_of_living", "US_violent_crime", "Weather_Dataset"]
+    )
     with tab1:
         st.dataframe(concise_df.sort_values("Rank"), use_container_width=True)
     with tab2:
