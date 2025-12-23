@@ -84,7 +84,7 @@ with st.expander("How to use this dashboard"):
 # -------------------------------------------------
 # Tabs
 # -------------------------------------------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
+tab1, tab2, tab3, tab4 = st.tabs(
     ["🏠 Dashboard", "💸 Cost of Living", "🚨 Crime Rate", "🌤 Climate"]
 )
 
